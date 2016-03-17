@@ -1,0 +1,188 @@
+Bookings(in AUD) Exploration by Heki Wong
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+library(psych)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(scales)
+theme_set(theme_minimal(20))
+```
+```{r global_options, include=FALSE} 
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
+```
+# clear data
+```{r echo=FALSE}
+# Load the Data
+AU_ibe_booking=read.csv('/Users/Apple/Desktop/udacity/hw4/15_AU_booking_summary.csv')
+```
+
+**Remove all duplicate row**
+```{r echo=FALSE}
+cleared_data1=AU_ibe_booking[!duplicated(AU_ibe_booking['Rloc']), ]
+cleared_data<-subset(cleared_data1,numberOfDay >= 0 & Pnr.Curr.Code=='AUD')
+dim(cleared_data)
+```
+ Suppose the date of booking is earlier than date of flight and the currency is AUD, i.e.numberOfDay >= 0 and Pnr.Curr.Code=='AUD' .Also , there is no duplicated RLOC(duplicated data).
+ 850 rows is removed from the dataset.
+ After cleared data, there is 88356 rows
+ 
+
+**create some variable**
+```{r echo=FALSE}
+cleared_data <- transform(cleared_data, 
+                          netPerPerson = Net.Net.Rev/Pnr.Pax.Count)
+cleared_data <- transform(cleared_data, 
+                          farePerPerson = Pnr.Fare.Amt/Pnr.Pax.Count)
+```
+
+I create three variables for finding net revenue/passenger, fare/ passenger, because I am to know this information for each passenger , not for each transaction.
+i.e.
+$$netPerPerson = Net.Net.Rev/Pnr.Pax.Count$$
+$$farePerPerson = Pnr.Fare.Amt/Pnr.Pax.Count$$
+
+There is many missing data in netPerPerson column. It cannot find the 
+the ratio of fare to net revenue. 
+
+**Remove all NA in Net revenue/Person and create a variable**
+
+```{r echo=FALSE}
+remove_NA_net <- filter(cleared_data, netPerPerson!='NA')
+remove_NA_net <- transform(remove_NA_net, fare_to_net = 
+farePerPerson /netPerPerson)
+```
+$$fare_to_net = farePerPerson /netPerPerson$$
+There is so many data removed.
+
+
+# Univariate Analysis
+### What is the structure of your dataset?
+There are 89,206 booking , which pay in AUD, in the dataset with 29 features.
+ 
+ [1] "Pnr.Creat.Date"(the date of create booking)
+ [2] "month_pnr_create"(the month of create booking) 
+ [3] "Rloc" ( the reference number of booking)                    
+ [4] "Bkg.User.Id" 
+ [5] "Collect.Method" (only e-ticket)            
+ [6] "Curr.First.Dep.Apt"        
+ [7] "numberOfDay" ( number of days between date of create booking and date of departure)             
+ [8] "month_dep" (the month of departure)                        
+ [9] "from_1st" (the 1st city of departure)                
+ [10] "to_1st" (the 1st city of arrival)                       
+ [11] "from_2nd" (the 2nd city of departure)                  
+ [12] "to_2nd"  (the 2nd city of arrival)
+ [13] "from_3rd" (the 3rd city of departure)                
+ [14] "to_3rd" (the 3rd city of arrival)                        
+ [15] "destination"               
+ [16] "type" (one-way/return way/ multi-way)                      
+ [17] "Season" (the season of departure                    
+ [18] "Curr.First.Dep.Date"    
+ [19] "Pnr.Pax.Count" (the number of passengers and companions in each booking)             
+ [20] "Lang" (language shown on website)                         
+ [21] "Pnr.Curr.Code"             
+ [22] "Pnr.Fare.Amt" (the amount of Fare in AUD)               
+ [23] "Bkg.Subclass"              
+ [24] "Bkg_Subclass" (the booking subclass)             
+ [25] "Net.Net.Rev" (the net revenue)              
+ [26] "Sales.Promo"               
+ [27] "first_ticket_O"            
+ [28] "first_ticket_D"               
+ [29] "Route"                     
+ [30] "Pnr.Creat.Pseudo.City.Code"
+
+
+
+The variables Lang, Destination, and Bkg_Subclass, are ordered factor variables with the following levels.
+
+**Lang(the language shown on website)**: "CN" "DE" "FR" "GB" "ID" "IT" "JP" "KO" "KR" "NL" "RE" "RU" "TH" "TW"
+
+**Destination**: "ADL" "AMS" "BKK" "BLR" "BNE" "BOM" "BOS" "CAN" "CCU" "CDG" "CEB" "CGK" "CGO" "CJU" "CKG" "CMB" "CNS" "CNX" "CPT" "CRK" "CSX" "CTS" "CTU" "DAC" "DAD" "DEL" "DFW" "DLC" "DME" "DOH" "DPS" "DUR" "DUS" "DXB" "EWR" "FCO" "FOC" "FRA" "FUK" "HAK" "HAN" "HGH" "HKG" "HKT" "HND" "HYD" "ICN" "JFK" "JMU" "JNB" "KHH" "KIX" "KMG" "KTM" "KUL" "KWL" "LAX" "LHR" "MAA" "MAD" "MAN" "MEL" "MLE" "MNL" "MXP" "NGB" "NGO" "NKG" "NRT" "OKA" "ORD" "PEK" "PER" "PNH" "PUS" "PVG" "RMQ" "RUH" "SFO" "SGN" "SHA" "SIN" "SYD" "SYX" "TAO" "TPE" "TSN" "VVO" "WNZ" "WUH" "XIY" "XMN" "YVR" "YYZ" "ZRH"
+
+**Bkg_Subclass** : (best) ----------------> (worst) 
+1) First Class (Flex): F, 
+2) Business Class : J, C, D, I
+3) Premium Economy : W, R, E
+4) Economy Class (Standard/flex) : Y, B, H, K, M, L, V
+5) Economy Class(Special)  : S, N, Q
+6) Economy Class(Supersaver): T,U
+	
+Other observations: 
+Most passengers buy return tickets flight from HKG in English version.
+For each transaction , the median of the number of passenger is one.
+The amount of fare from AUD 0 to AUD 33,517.4
+There is 61505 is return ticket.
+Some of transaction duplicate that the number of RLOC is more than one.
+
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE}
+theme_set(theme_minimal(12))
+
+plot1 <- qplot(x = Bkg_Subclass, y = farePerPerson, 
+               data = cleared_data, geom = 'boxplot',
+color = Bkg_Subclass) +
+coord_cartesian(ylim = c(0, 15000))+
+ggtitle('by Booking Subclass') +
+xlab('Booking Subclass') +
+ylab('Fares (in AUD)') +
+theme(legend.position = 'none')
+
+plot2 <- qplot(Bkg_Subclass, data = cleared_data, fill = Season ) +
+  ggtitle('Number of booking by booking subclass') +
+  xlab('Booking Subclass') + 
+  ylab('Number of booking')
+
+grid.arrange(plot2, plot1, ncol = 1)
+```
+
+### Description One
+Passengers prefer buy lowest price of tickets,however , the median of net revenue is also lowest.The proportion of season2 in almost every booking subclass is the highest,  passengers likely go to travel in Season 2.
+
+### Plot Two
+```{r echo=FALSE}
+theme_set(theme_minimal(12))
+
+plot1 <- qplot(x = month_pnr_create, y = farePerPerson, 
+               data = cleared_data, geom = 'boxplot',
+               fill = month_pnr_create) +
+coord_cartesian(ylim = c(0, 2500))+
+ggtitle('by month(create booking)') +
+xlab('Month(Create booking)') +
+ylab('Fares (in AUD)') +
+theme(legend.position = 'none')
+
+plot2 <- qplot(farePerPerson, data = cleared_data, binwidth = 400,
+color = month_pnr_create, geom = 'density') +
+coord_cartesian(xlim = c(0, 2000))+
+guides(color = guide_legend(title = 'Month(create booking)', reverse = F)) +
+xlab('Fare/person (AUD)') +
+ylab('Density') +
+ggtitle('Density of Fare/person (AUD) by Month(create booking)')
+
+grid.arrange(plot1, plot2, ncol = 1)
+```
+### Description Two
+
+It find that the relationship between months and price of fare. For the peak periods, the price will be increse with higher variance.The mean of fare is under  AUD 1000 in whole year.(except January) and the all distribution of fare is positive skew.
+
+### Plot three
+```{r echo=FALSE}
+theme_set(theme_minimal(16))
+qplot(x=netPerPerson, y=farePerPerson, 
+      color=Bkg_Subclass, data=remove_NA_net)+
+geom_point(alpha = 0.5, position = 'jitter') +
+ggtitle('Fare by Net revenue and booking subclass') +
+theme(plot.title = element_text(size = 16))
+```
+### Description Three
+
+This graph shows the relationship between fare and net revenue booking subclass.Obviously ,the price of fare is higher, the net revenue is higher. Also, there are two recognized lines on the graph that means there are at least two formula for calculate fare by net revenue for different situations.    
+
+# Reflection
+The data set contains booking information on almost 90 thousand transactions from around 2015. I started by understanding the individual variables in the data set and created a linear model to predict net revenue of ticket, and then I explored interesting questions and leads as I continued to make observations on plots. Eventully , I explored the number of passengers and the amount of net renvenue/fare per passenger across many variables. At first , I was wonder why so many bookings created on February and October, it is because the tickets in these two months is the cheapest in a year.It is easy to understand that the booking class is mainly class V/L/S/M/K , which concentrate on enconomy class with lowest median of fare.Also, it is strong demand for travel originating from HongKong ,benefited from the weakness of the Euros and the Australian dollars in the first half of 2015.It reflects demand on regional routes is strong, particular in economy class. There was strong economy class demand on long-haul routes.For this, I am strongly recommend increase flights to popular destination over the peak period.Also, using larger aircarft such as Boeing 777-300ER on popular flight a day will increase capacity.

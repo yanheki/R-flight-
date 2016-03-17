@@ -1,0 +1,567 @@
+Bookings(in AUD) Exploration by Heki Wong
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+library(psych)
+library(ggplot2)
+library(gridExtra)
+library(dplyr)
+library(scales)
+theme_set(theme_minimal(20))
+```
+
+**Load_the_Data**
+```{r echo=FALSE}
+# Load the Data
+AU_ibe_booking=read.csv('/Users/Apple/Desktop/udacity/hw4/15_AU_booking_summary.csv')
+```
+
+# Univariate Plots Section
+**Summary**
+```{r echo=FALSE}
+# Summarize the data set
+dim(AU_ibe_booking)
+names(AU_ibe_booking)
+str(AU_ibe_booking)
+levels(AU_ibe_booking$Lang)
+levels(AU_ibe_booking$from_1st)
+levels(AU_ibe_booking$to_1st)
+levels(AU_ibe_booking$destination)
+levels(AU_ibe_booking$Bkg_Subclass)
+summary(AU_ibe_booking)
+```
+Most passengers buy return tickets flight from HKG in english version.
+For each transaction , the median of the passenger is one.
+The amount of fare from AUD 0 to AUD 33,517.4
+There is 61505 is return ticket.
+Some of transaction duplicate that the number of RLOC is more than one.
+
+**Remove all duplicate row**
+```{r echo=FALSE}
+cleared_data1=AU_ibe_booking[!duplicated(AU_ibe_booking['Rloc']), ]
+cleared_data<-subset(cleared_data1,numberOfDay >= 0 & Pnr.Curr.Code=='AUD')
+dim(cleared_data)
+summary(cleared_data)
+```
+ Suppose the date of booking is earlier than date of flight and the currency is AUD, i.e.numberOfDay >= 0 and Pnr.Curr.Code=='AUD' .Also , there is no duplicated RLOC(duplicated data).
+ 850 rows is removed from the dataset.
+ After cleared data, there is 88356 rows
+ 
+
+###Check Pnr.Fare.Amt/Net.Net.Rev/Number.of.day
+**Pnr.Fare.Amt**
+
+```{r echo=FALSE}
+qplot(Pnr.Fare.Amt, data=cleared_data, binwidth = 50)+
+  coord_cartesian(xlim = c(0, 3000))
+``` 
+
+Most tickets is around AUD 1000
+
+**Pnr.Fare.Amt**
+```{r echo=FALSE}
+table(cleared_data$Pnr.Fare.Amt == 0)
+summary(cleared_data$Pnr.Fare.Amt)
+```
+
+There were 122 transctions are free of charge in 2015.
+The mean of each transction is AUD 1976.
+The median of each transction is AUD 1363.
+
+**Net.Net.Rev**
+
+```{r echo=FALSE,}
+qplot(Net.Net.Rev, data=cleared_data, binwidth = 50)
+qplot(Net.Net.Rev, data=cleared_data, binwidth = 50)+
+  coord_cartesian(xlim = c(0, 2000))
+``` 
+
+Most of the net revenue for each transaction is around AUD 500
+
+**Net.Net.Rev**
+```{r echo=FALSE}
+table(cleared_data$Net.Net.Rev == 0)
+summary(cleared_data$Net.Net.Rev)
+```  
+There is 26392 which do not have record.
+The median of the net revenue is AUD 613.8
+
+**Number.of.day**
+```{r echo=FALSE}
+qplot(numberOfDay, data=cleared_data)
+qplot(numberOfDay, data = cleared_data, geom = 'freqpoly', binwidth = 3)
+```
+
+Most passengers will plan the trip around 3 months before.
+
+**Number.of.day**
+```{r echo=FALSE}
+table(cleared_data$numberOfDay== 0)
+summary(cleared_data$numberOfDay)
+```  
+There is 549 passengers bought the ticket shortly.
+
+```{r global_options, include=FALSE} 
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/', echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+I am wonder why there is so many passengers flight from HK and if they flight to Australia.
+
+**Origin = HKG**
+```{r echo=FALSE}
+Origin_HKG <- filter(cleared_data, from_1st=='HKG')
+dim(Origin_HKG)
+summary(Origin_HKG)
+table(Origin_HKG$month_dep)
+table(Origin_HKG$Bkg_Subclass)
+qplot(x = Bkg_Subclass, data = Origin_HKG, fill = Bkg_Subclass) + 
+  facet_wrap(~month_dep)
+qplot(x = month_dep, data = Origin_HKG, fill = Bkg_Subclass) + 
+  facet_wrap(~to_1st)
+```
+
+There is 57459 bookings(65%) paid in AUD flight from HKG. I am so surprise that the popular months is not February and August (the school starting day) and the popular booking class is not business class (for business trip)
+
+**Origin = HKG (in month of departure)**
+```{r echo=FALSE}
+qplot(x = month_dep, data = Origin_HKG, fill = Bkg_Subclass) + 
+  facet_wrap(~to_1st)
+```
+
+The popular city( 1st destination) are PAR(Paris), SHA(Shanghai)and YVR(Vancouver), all of that are commercial city. 
+
+**create AU table**
+```{r echo=FALSE}
+AU <-data.frame(city=I(c('APL','ASP','AYQ','BNE','CNS','CBR','DRW','OOL','HBA','LST','MEL','PER','SYD','TSV')))
+```
+
+**Origin = HKG , destination = AU**
+```{r echo=FALSE}
+# using filter and anti_join in dlyr
+Origin_HKG_to_AU<-merge(Origin_HKG,AU, by.x =c('to_1st') , by.y='city')
+dim(Origin_HKG_to_AU)
+summary(Origin_HKG_to_AU)
+qplot(x = month_dep, data =Origin_HKG_to_AU, fill = Bkg_Subclass) + 
+  facet_wrap(~to_1st)
+```
+
+There is 35628 bookings paid in AUD flight from HKG to AU. It is not surprise that the most popular city are SYD(Sydney) , PER(Perth) and MEL(Melbourne) , are main cities in Australia.
+
+**Origin = AU**
+```{r echo=FALSE}
+# using filter and anti_join in dlyr
+Origin_AU <- merge(cleared_data,AU, by.x =c('from_1st') , by.y='city')
+dim(Origin_AU)
+summary(Origin_AU)
+qplot(x = month_dep, data =Origin_AU, fill = Bkg_Subclass) + 
+  facet_wrap(~to_1st)
+```
+
+There is only 14089 bookings(around 16%) paid in AUD flight from AU. Most of them is multi-way or one-way tickets. All of these bookings is flight to HKG.
+
+**create some variable**
+```{r echo=FALSE}
+cleared_data <- transform(cleared_data, 
+                          netPerPerson = Net.Net.Rev/Pnr.Pax.Count)
+cleared_data <- transform(cleared_data, 
+                          farePerPerson = Pnr.Fare.Amt/Pnr.Pax.Count)
+```
+
+I create three variables for finding net revenue/passenger, fare/ passenger, because I am to know this information for each passenger , not for each transaction.
+i.e.
+$$netPerPerson = Net.Net.Rev/Pnr.Pax.Count$$
+$$farePerPerson = Pnr.Fare.Amt/Pnr.Pax.Count$$
+
+There is many missing data in netPerPerson column. It cannot find the 
+the ratio of fare to net revenue. 
+
+**Remove all NA in Net revenue/Person and create a variable**
+
+```{r echo=FALSE}
+remove_NA_net <- filter(cleared_data, netPerPerson!='NA')
+remove_NA_net <- transform(remove_NA_net, fare_to_net = 
+farePerPerson /netPerPerson)
+```
+$$fare_to_net = farePerPerson /netPerPerson$$
+There is so many data removed.
+
+**Remove all NA in Net revenue/Person**
+```{r echo=FALSE}
+summary(remove_NA_net$fare_to_net)
+qplot(fare_to_net, data=remove_NA_net, binwidth=.1)+
+  coord_cartesian(xlim = c(0, 5)) 
+```
+The ratio is mainly around 2. 
+
+Then, I am wonder why the ratio is not in same range. Which factor affect this , date of departure , booking class or type of way.( return-way/ one-way/ multi-way)
+
+**fare_to_net, by month of departure**
+```{r echo=FALSE}
+with(remove_NA_net, by(fare_to_net, month_dep, summary))
+```
+
+In December , the median of ratio is the highest in a year.
+
+**fare_to_net, by booking subclass**
+```{r echo=FALSE}
+with(remove_NA_net, by(fare_to_net, Bkg_Subclass, summary))
+```
+
+The highest median of ratio is the S class among all booking subclass. 
+
+**fare_to_net, by type**
+```{r echo=FALSE}
+with(remove_NA_net, by(fare_to_net, type, summary))
+```
+The highest median of ratio is multi-way.
+
+
+```{r echo=FALSE}
+#qplot(x =month_dep ,y=fare_to_net, data = remove_NA_net, fill = 
+#month_dep, geom='boxplot')+ facet_wrap(~Bkg_Subclass)
+```
+
+Then , I want to set-up a linear model to predict the net revenue from the price of fare.
+
+**Linear_Model**
+```{r echo=FALSE}
+netrevenuefare_LM <- lm(netPerPerson~farePerPerson,data = remove_NA_net)
+plot(netrevenuefare_LM, main='net revenue fare LM')
+summary(netrevenuefare_LM)
+```
+
+# Univariate Analysis
+### What is the structure of your dataset?
+There are 89,206 booking , which pay in AUD, in the dataset with 29 features.
+ 
+ [1] "Pnr.Creat.Date"(the date of create booking)
+ [2] "month_pnr_create"(the month of create booking) 
+ [3] "Rloc" ( the reference number of booking)                    
+ [4] "Bkg.User.Id" 
+ [5] "Collect.Method" (only e-ticket)            
+ [6] "Curr.First.Dep.Apt"        
+ [7] "numberOfDay" ( number of days between date of create booking and date of departure)               
+ [8] "month_dep" (the month of departure)                        
+ [9] "from_1st" (the 1st city of departure)                
+ [10] "to_1st" (the 1st city of arrival)                       
+ [11] "from_2nd" (the 2nd city of departure)                  
+ [12] "to_2nd"  (the 2nd city of arrival)
+ [13] "from_3rd" (the 3rd city of departure)                
+ [14] "to_3rd" (the 3rd city of arrival)                        
+ [15] "destination"               
+ [16] "type" (one-way/return way/ multi-way)                      
+ [17] "Season" (the season of departure                    
+ [18] "Curr.First.Dep.Date"    
+ [19] "Pnr.Pax.Count" (the number of passengers and companions in each booking)             
+ [20] "Lang" (language shown on website)                         
+ [21] "Pnr.Curr.Code"             
+ [22] "Pnr.Fare.Amt" (the amount of Fare in AUD)               
+ [23] "Bkg.Subclass"              
+ [24] "Bkg_Subclass" (the booking subclass)             
+ [25] "Net.Net.Rev" (the net revenue)              
+ [26] "Sales.Promo"               
+ [27] "first_ticket_O"            
+ [28] "first_ticket_D"               
+ [29] "Route"                     
+ [30] "Pnr.Creat.Pseudo.City.Code"
+
+
+
+The variables Lang, Destination, and Bkg_Subclass, are ordered factor variables with the following levels.
+
+**Lang(the language shown on website)**: "CN" "DE" "FR" "GB" "ID" "IT" "JP" "KO" "KR" "NL" "RE" "RU" "TH" "TW"
+
+**Destination**: "ADL" "AMS" "BKK" "BLR" "BNE" "BOM" "BOS" "CAN" "CCU" "CDG" "CEB" "CGK" "CGO" "CJU" "CKG" "CMB" "CNS" "CNX" "CPT" "CRK" "CSX" "CTS" "CTU" "DAC" "DAD" "DEL" "DFW" "DLC" "DME" "DOH" "DPS" "DUR" "DUS" "DXB" "EWR" "FCO" "FOC" "FRA" "FUK" "HAK" "HAN" "HGH" "HKG" "HKT" "HND" "HYD" "ICN" "JFK" "JMU" "JNB" "KHH" "KIX" "KMG" "KTM" "KUL" "KWL" "LAX" "LHR" "MAA" "MAD" "MAN" "MEL" "MLE" "MNL" "MXP" "NGB" "NGO" "NKG" "NRT" "OKA" "ORD" "PEK" "PER" "PNH" "PUS" "PVG" "RMQ" "RUH" "SFO" "SGN" "SHA" "SIN" "SYD" "SYX" "TAO" "TPE" "TSN" "VVO" "WNZ" "WUH" "XIY" "XMN" "YVR" "YYZ" "ZRH"
+
+**Bkg_Subclass** : (best) ----------------> (worst) 
+1) First Class (Flex): F, 
+2) Business Class : J, C, D, I
+3) Premium Economy : W, R, E
+4) Economy Class (Standard/flex) : Y, B, H, K, M, L, V
+5) Economy Class(Special)  : S, N, Q
+6) Economy Class(Supersaver): T,U
+	
+Other observations: 
+Most passengers buy return tickets flight from HKG in English version.
+For each transaction , the median of the number of passenger is one.
+The amount of fare from AUD 0 to AUD 33,517.4
+There is 61505 is return ticket.
+Some of transaction duplicate that the number of RLOC is more than one.
+
+### What is/are the main feature(s) of interest in your dataset?
+The main features in the data set are the amount of the fare and net revenue,  booking subclass, month of create booking/departure and season .  I would like to look into what factors will increase passengers and net renvenues. I suspect if peak season/month and booking subclass are the main factor to predict this data.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+Also ,  departure city (1st , 2nd and 3rd ) , arrival city (1st , 2nd and 3rd ), type of tickets and language shown on website likely contribute to the number of passengers. 
+ I think  language and type of tickets probably contribute most to the number of passengers after researching information on the dataset.
+ 
+### Did you create any new variables from existing variables in the dataset?
+
+I create three variables for finding net revenue/passenger, fare/ passenger, because I am to know this information for each passenger , not for each transaction.
+i.e.
+$$netPerPerson = Net.Net.Rev/Pnr.Pax.Count$$
+$$farePerPerson = Pnr.Fare.Amt/Pnr.Pax.Count$$
+
+I also create the ratio of fare to net revenue. 
+i.e.
+$$fare_to_net = farePerPerson /netPerPerson$$
+
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+
+Suppose the date of booking is earlier than date of flight and the currency is AUD, i.e.numberOfDay >= 0 and Pnr.Curr.Code=='AUD' .Also , there is no duplicated RLOC(duplicated data).
+ 850 rows is removed from the dataset.
+After cleared data, there is 88356 rows
+
+There are too much missing data in the net revenue  ( 26605 is NA ). Therefore , only relevant to net revenue will use cleared data set.(remove_NA_net) 
+
+# Bivariate Plots Section
+
+**Correlation_Matrix**
+
+```{r echo=FALSE}
+cor(remove_NA_net[, c(7,31,32,33)])
+set.seed(3)
+pairs.panels(sample_n(remove_NA_net[c(7,31,32,33)], 1000), pch=".")
+```
+
+**Net revenue/person by booking subclasss**
+
+```{r echo=FALSE}
+qplot(x = Bkg_Subclass, y = netPerPerson, color =Bkg_Subclass, 
+      data = remove_NA_net, geom = 'boxplot')
+```
+
+The median of net revenue in economy class is the lowest. The better class, the variance of net revenue is increase.
+
+**Booking subclasssn by season**
+
+```{r echo=FALSE}
+qplot(Bkg_Subclass, data = cleared_data, fill = Season ) +
+  ggtitle('Number of booking by booking subclass') +
+  xlab('Booking Subclass') + 
+  ylab('Number of booking')
+```
+
+V class is the popular booking class in every seasons. From this graph , it can find that only a small porprotion of passengers is able afford the fare of business class.
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+#Correlation_Matrix
+
+Date of departure, booking class and type of way are the facter affect the ratio of fare to net revenue.In December , the median of ratio is the highest in a year.This result is same as expected because Christmas is in December and it is a important festival for western family.The highest median of ratio is the S class among all booking subclass. The highest median of ratio is multi-way.Normally, multi-way is the most expensive in ticket type.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+It is interested to observe tht economy class is the most popular and the median of net revenue in economy class is the lowest. 
+
+### What was the strongest relationship you found?
+The price of a tickets is positively and strongly correlated with net revenue.The fare could be used in a model to predict the the net revenue in each booking which show perfect correlation.
+
+# Multivariate Analysis
+
+**Price_Histograms_by_Qualitative_Factors**
+
+```{r echo=FALSE}
+qplot(farePerPerson, data = cleared_data, binwidth = 1,
+      color = Season, geom = 'density') +
+      coord_cartesian(xlim = c(0, 4000))
+qplot(farePerPerson, data = cleared_data, binwidth = 1,
+      color = Bkg_Subclass, geom = 'density') +
+      coord_cartesian(xlim = c(0, 4000))
+qplot(farePerPerson, data = cleared_data,  binwidth = 1,
+      color = type, geom = 'density') +
+      coord_cartesian(xlim = c(0, 4000))+
+  guides(color = guide_legend(reverse = T))
+```
+
+These density plots explain the odd trends that were seen in the box plots earlier. There is higher variances in lower fare/passenger with different levels of season, booking class and type.
+
+
+**fare_to_net in Season**
+
+```{r echo=FALSE}
+qplot(x = Season, y = fare_to_net, data = remove_NA_net, geom = 'boxplot')
+qplot(x = Season, y = fare_to_net, data = remove_NA_net, geom = 'boxplot') +
+  coord_cartesian(ylim = c(0, 5))
+with(remove_NA_net, by(fare_to_net, Season, summary))
+```
+
+Wow! Only season 4 has highest median for the ratio having the largest variation. Season2 and Season 3 have the least variation.
+
+**fare_to_net in booking class**
+
+```{r echo=FALSE}
+qplot(x = Bkg_Subclass, y = fare_to_net, 
+      data = remove_NA_net, geom = 'boxplot')
+qplot(x = Bkg_Subclass, y = fare_to_net, 
+      data = remove_NA_net, geom = 'boxplot')+
+coord_cartesian(ylim = c(0, 3))
+with(remove_NA_net, by(fare_to_net, Bkg_Subclass, summary))
+```
+
+The discount ticket in economy class have the lowest median ratio. This is such an usual trend. 
+
+**fare_to_net in type**
+
+```{r echo=FALSE}
+qplot(x = type, y = fare_to_net, data = remove_NA_net, geom = 'boxplot')
+qplot(x = type, y = fare_to_net, data = remove_NA_net, geom = 'boxplot') +
+coord_cartesian(ylim = c(0, 5))
+with(remove_NA_net, by(fare_to_net, type, summary))
+```
+
+I guess the median of ratio in one-way is the largest, it is different to my expect. The multi-way is the highest median among the type having the largest interquatile range.
+
+### fare_to_net Hist by type
+```{r echo=FALSE}
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = type)+
+  coord_cartesian(xlim = c(0, 5))
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = type)+
+  coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~Season)
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = type)+
+  coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~Bkg_Subclass)
+```
+
+It looks like return-way ticket is the popular type. Different type has similar range of ratio. 
+
+### fare_to_net Hist by Season
+```{r echo=FALSE}
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Season)+
+  coord_cartesian(xlim = c(0, 5))
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Season)+
+  coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~type)
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Season)+
+  coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~Bkg_Subclass)
+```
+
+### fare_to_net Hist by Booking Subclass
+```{r echo=FALSE}
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Bkg_Subclass)+coord_cartesian(xlim = c(0, 5))
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Bkg_Subclass)+coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~type)
+
+qplot(x = fare_to_net, y = , data = remove_NA_net, binwidth=.5, fill = Bkg_Subclass)+coord_cartesian(xlim = c(0, 4))+
+  facet_wrap(~Season)
+```
+
+These plots support the variability and trends that the boxplots showed from before. I am going see which variables correlate with net revenue. 
+
+### fare_to_net Hist VS number of days
+
+```{r echo=FALSE}
+qplot(x = numberOfDay, y = fare_to_net, data = remove_NA_net, color =Season)+
+  geom_point(alpha = 0.5, size = 1, position = 'jitter') +
+  coord_cartesian(ylim = c(0, 10))
+qplot(x = numberOfDay, y = fare_to_net, data = remove_NA_net, color =type)+
+  geom_point(alpha = 0.5, size = 1, position = 'jitter')+
+  coord_cartesian(ylim = c(0, 10))
+qplot(x = numberOfDay, y = fare_to_net, 
+      data = remove_NA_net, color =Bkg_Subclass)+
+  geom_point(alpha = 0.5, size = 1, position = 'jitter')+
+  coord_cartesian(ylim = c(0, 10))
+```
+
+It seems that there is no strong relationship between the ratio of fare to net and the number of days. For season1 , mostly, they plan the trip before 3 months, but for other season , they likely buy it in shortly .There is no clear trend, pattern or observation in booking subclass and type.  
+
+###netPerPerson VS farePerPerson
+```{r echo=FALSE}
+qplot(x=netPerPerson, y=farePerPerson, color=Bkg_Subclass, data=remove_NA_net)
+```
+
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+The multi-way is the highest median among the type having the largest interquatile range.
+Only season 4 has highest median for the ratio having the largest variation. Season2 and Season 3 have the least variation.
+The discount ticket in economy class have the lowest median ratio. This is such an usual trend. 
+It seems that there is no strong relationship between the ratio of fare to net and the number of days. For season1 , mostly, they plan the trip before 3 months, but for other season , they likely buy it in shortly .There is no clear trend, pattern or observation in booking subclass and type. 
+
+### Were there any interesting or surprising interactions between features?
+The multi-way is the highest median among the type having the largest interquatile range.
+Only season 4 has highest median for the ratio having the largest variation. Season2 and Season 3 have the least variation.
+The discount ticket in economy class have the lowest median ratio. This is such an usual trend. 
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+# Final Plots and Summary
+
+
+### Plot One
+```{r echo=FALSE}
+theme_set(theme_minimal(12))
+
+plot1 <- qplot(x = Bkg_Subclass, y = farePerPerson, 
+               data = cleared_data, geom = 'boxplot',
+color = Bkg_Subclass) +
+coord_cartesian(ylim = c(0, 15000))+
+ggtitle('by Booking Subclass') +
+xlab('Booking Subclass') +
+ylab('Fares (in AUD)') +
+theme(legend.position = 'none')
+
+plot2 <- qplot(Bkg_Subclass, data = cleared_data, fill = Season ) +
+  ggtitle('Number of booking by booking subclass') +
+  xlab('Booking Subclass') + 
+  ylab('Number of booking')
+
+grid.arrange(plot2, plot1, ncol = 1)
+```
+
+### Description One
+Passengers prefer buy lowest price of tickets,however , the median of net revenue is also lowest.The proportion of season2 in almost every booking subclass is the highest,  passengers likely go to travel in Season 2.
+
+### Plot Two
+```{r echo=FALSE}
+theme_set(theme_minimal(12))
+
+plot1 <- qplot(x = month_pnr_create, y = farePerPerson, 
+               data = cleared_data, geom = 'boxplot',
+               fill = month_pnr_create) +
+coord_cartesian(ylim = c(0, 2500))+
+ggtitle('by month(create booking)') +
+xlab('Month(Create booking)') +
+ylab('Fares (in AUD)') +
+theme(legend.position = 'none')
+
+plot2 <- qplot(farePerPerson, data = cleared_data, binwidth = 400,
+color = month_pnr_create, geom = 'density') +
+coord_cartesian(xlim = c(0, 2000))+
+guides(color = guide_legend(title = 'Month(create booking)', reverse = F)) +
+xlab('Fare/person (AUD)') +
+ylab('Density') +
+ggtitle('Density of Fare/person (AUD) by Month(create booking)')
+
+grid.arrange(plot1, plot2, ncol = 1)
+```
+### Description Two
+
+It find that the relationship between months and price of fare. For the peak periods, the price will be increse with higher variance.The mean of fare is under  AUD 1000 in whole year.(except January) and the all distribution of fare is positive skew.
+
+### Plot three
+```{r echo=FALSE}
+theme_set(theme_minimal(16))
+qplot(x=netPerPerson, y=farePerPerson, 
+      color=Bkg_Subclass, data=remove_NA_net)+
+geom_point(alpha = 0.5, position = 'jitter') +
+ggtitle('Fare by Net revenue and booking subclass') +
+theme(plot.title = element_text(size = 16))
+```
+### Description Three
+
+This graph shows the relationship between fare and net revenue booking subclass.Obviously ,the price of fare is higher, the net revenue is higher. Also, there are two recognized lines on the graph that means there are at least two formula for calculate fare by net revenue for different situations.    
+
+# Reflection
+The data set contains booking information on almost 90 thousand transactions from around 2015. I started by understanding the individual variables in the data set and created a linear model to predict net revenue of ticket, and then I explored interesting questions and leads as I continued to make observations on plots. Eventully , I explored the number of passengers and the amount of net renvenue/fare per passenger across many variables. At first , I was wonder why so many bookings created on February and October, it is because the tickets in these two months is the cheapest in a year.It is easy to understand that the booking class is mainly class V/L/S/M/K , which concentrate on enconomy class with lowest median of fare.Also, it is strong demand for travel originating from HongKong ,benefited from the weakness of the Euros and the Australian dollars in the first half of 2015.It reflects demand on regional routes is strong, particular in economy class. There was strong economy class demand on long-haul routes.For this, I am strongly recommend increase flights to popular destination over the peak period.Also, using larger aircarft such as Boeing 777-300ER on popular flight a day will increase capacity.
